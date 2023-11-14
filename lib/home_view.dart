@@ -1,27 +1,35 @@
-import 'package:fl_weather_app/components/custom_icon_button.dart';
+import 'package:fl_weather_app1/components/custom_icon_button.dart';
+import 'package:geolocator/geolocator.dart';
 import 'models/weather.dart';
-import 'package:fl_weather_app/constants/api_const.dart';
+import 'package:fl_weather_app1/constants/api_const.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'dart:developer';
 
-const List cities = <String>[
-  'Бишкек',
-  'Ош',
-  'Джалал-Абад',
-  'Каракол',
-  'Баткен',
-  'Нарын',
-  'Талас',
-  'Токмок',
-  'Москва',
-  'Париж',
-  'Рим',
-  'Лондон',
-  'Пекин',
-  'Токио',
-  'Вашингтон'
+List cities = <String>[
+  'Bishkek',
+  'Osh',
+  'Jalal-Abad',
+  'Karakol',
+  'Batken',
+  'Naryn',
+  'Talas',
+  'Tokmok',
+  'Moscow',
+  'Paris',
+  'Rome',
+  'London',
+  'Beijing',
+  'Tokyo',
+  'Washington',
+  'Sydney'
 ];
+class City {
+  final String name;
+  final String backgroundImage;
+
+  City(this.name, this.backgroundImage);
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -33,7 +41,53 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  City selectedCity = City('Bishkek', '/Bishkek.jpg');
   Weather? weather;
+  Future<void> weatherLocatio() async {
+    setState(() {
+      weather = null;
+    });
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.always &&
+          permission == LocationPermission.whileInUse) {
+        Position position = await Geolocator.getCurrentPosition();
+        final dio = Dio();
+        final resp = await dio.get(
+            ApiConst.latLongaddres(position.latitude, position.longitude));
+        if (resp.statusCode == 200) {
+          weather = Weather(
+            id: resp.data['current']['weather'][0]['id'],
+            main: resp.data['current']['weather'][0]['main'],
+            description: resp.data['current']['weather'][0]['description'],
+            icon: resp.data['current']['weather'][0]['icon'],
+            city: resp.data['timezone'],
+            // country: resp.data['sys']['country'],
+            temp: resp.data['current']['temp'],
+          );
+        }
+        setState(() {});
+          }
+      } else {
+        Position position = await Geolocator.getCurrentPosition();
+        final dio = Dio();
+        final resp = await dio.get(
+            ApiConst.latLongaddres(position.latitude, position.longitude));
+        if (resp.statusCode == 200) {
+          weather = Weather(
+            id: resp.data['current']['weather'][0]['id'],
+            main: resp.data['current']['weather'][0]['main'],
+            description: resp.data['current']['weather'][0]['description'],
+            icon: resp.data['current']['weather'][0]['icon'],
+            city: resp.data['timezone'],
+            temp: resp.data['current']['country']['temp'],
+          );
+        }
+        setState(() {});
+      }
+    } 
+
   Future<void> weatherName([String? name]) async {
     final dio = Dio();
     var response2 = await dio.get(ApiConst.address(name ?? 'Бишкек'));
@@ -72,9 +126,9 @@ class _HomePageState extends State<HomePage> {
           ? const Center(child: CircularProgressIndicator())
           : Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage('/kg.jpg'),
+                  image: AssetImage(selectedCity.backgroundImage),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -85,7 +139,9 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       CustomIconButton(
                         icon: Icons.near_me_outlined,
-                        onPressed: () {},
+                        onPressed: () async {
+                            await weatherLocatio();
+                          },
                       ),
                       CustomIconButton(
                         icon: Icons.location_city_rounded,
@@ -145,10 +201,12 @@ class _HomePageState extends State<HomePage> {
             itemCount: cities.length,
             itemBuilder: (BuildContext context, int index) {
               final city = cities[index];
+             // final cit = weatherName(city);
               return Card(
                 child: ListTile(
                   onTap: () async {
                     setState(() {
+                      selectedCity = City('$city', '/$city.jpg');
                       weather = null;
                     });
                     weatherName(city);
